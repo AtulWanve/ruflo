@@ -170,6 +170,25 @@ if (!od.metaharness) { console.error('missing metaharness in optionalDependencie
 if (j.dependencies && j.dependencies.metaharness) { console.error('metaharness leaked into dependencies'); process.exit(1); }
 " 2>/dev/null && ok || bad "ruflo wrapper missing metaharness optionalDep"
 
+step "17m. metaharness MCP tools registered (ADR-150 deepest integration — iter 20)"
+F="$ROOT/../../v3/@claude-flow/cli/src/mcp-tools/metaharness-tools.ts"
+miss=""
+[[ -f "$F" ]] || miss="$miss tools-file-missing"
+# All 5 tools declared
+for tool in metaharness_score metaharness_genome metaharness_mcp_scan metaharness_threat_model metaharness_oia_audit; do
+  grep -q "name: '${tool}'" "$F" || miss="$miss missing-${tool}"
+done
+# ADR-150 architectural-constraint anchor: zero static @metaharness/* import
+grep -q "from '@metaharness/" "$F" && miss="$miss static-metaharness-import-LEAK"
+# Subprocess isolation + locator
+grep -q "locatePluginScripts" "$F" || miss="$miss no-locator"
+grep -q "child_process" "$F" || miss="$miss no-subprocess"
+# Registered in mcp-client.ts
+CLIENT="$ROOT/../../v3/@claude-flow/cli/src/mcp-client.ts"
+grep -q "import { metaharnessTools }" "$CLIENT" || miss="$miss not-imported-in-client"
+grep -q "\.\.\.metaharnessTools" "$CLIENT" || miss="$miss not-spread-in-registry"
+[[ -z "$miss" ]] && ok || bad "$miss"
+
 step "17l. test-graceful-degradation drill (ADR-150 rule #3 — iter 19)"
 F="$ROOT/scripts/test-graceful-degradation.mjs"
 miss=""
