@@ -49,6 +49,8 @@ const SUBCOMMANDS: Record<string, string> = {
   genome: 'genome.mjs',
   'mcp-scan': 'mcp-scan.mjs',
   'threat-model': 'threat-model.mjs',
+  // iter 7 — composite Phase-2 weekly audit worker
+  'oia-audit': 'oia-audit.mjs',
   mint: 'mint.mjs',
 };
 
@@ -119,6 +121,7 @@ export const metaharnessCommand: Command = {
       output.writeln('  genome        7-section categorical readiness report');
       output.writeln('  mcp-scan      static security scan of declared MCP surface');
       output.writeln('  threat-model  enterprise-grade threat model');
+      output.writeln('  oia-audit     composite weekly audit (oia + threat + mcp) → memory');
       output.writeln('  mint          scaffold a custom harness (dry-run by default)');
       output.writeln('');
       output.writeln('Each subcommand accepts --format json|table and --help.');

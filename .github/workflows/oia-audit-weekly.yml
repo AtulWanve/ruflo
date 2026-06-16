@@ -1,0 +1,68 @@
+# Weekly composite audit (ADR-150 Phase 2 — iter 7).
+#
+# Runs `harness oia-audit` against the ruflo repo every Sunday at
+# 04:17 UTC (off-peak, off-the-hour to avoid the global :00 thundering
+# herd; see CronCreate "Avoid the :00 and :30 minute marks").
+#
+# The audit bundles three orthogonal MetaHarness static-analysis
+# surfaces — oia-manifest + threat-model + mcp-scan — into one
+# timestamped record uploaded as a CI artifact. Failure threshold:
+# composite worst severity >= HIGH fails the workflow.
+#
+# Accumulated artifacts (retained 90 days) enable drift detection
+# over time without needing a persistent memory store in CI.
+#
+# ADR-150 graceful degradation: when metaharness is unavailable, the
+# script emits a degraded payload and exits 0 — the workflow
+# continues, and the artifact records the degraded state.
+name: oia-audit-weekly
+
+on:
+  schedule:
+    - cron: '17 4 * * 0'  # Sundays at 04:17 UTC
+  workflow_dispatch:        # manual trigger for ad-hoc audits
+  push:
+    branches: [main]
+    paths:
+      - 'plugins/ruflo-metaharness/scripts/oia-audit.mjs'
+      - 'plugins/ruflo-metaharness/scripts/_harness.mjs'
+      - '.github/workflows/oia-audit-weekly.yml'
+
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Run composite audit (alert on HIGH)
+        # --dry-run because CI has no persistent memory store; the
+        # artifact upload below is the durability mechanism.
+        # --alert-on-worst high fails the job on any composite HIGH
+        # finding; medium/low/clean pass.
+        run: |
+          node plugins/ruflo-metaharness/scripts/oia-audit.mjs \
+            --path . \
+            --dry-run \
+            --alert-on-worst high \
+            --format json \
+            > /tmp/oia-audit.json
+          cat /tmp/oia-audit.json | head -80
+          # Extract composite severity for the workflow summary
+          WORST=$(node -e "
+            const j = JSON.parse(require('fs').readFileSync('/tmp/oia-audit.json'));
+            console.log(j.composite?.worst || 'unknown');
+          ")
+          echo "## Composite worst severity: \`$WORST\`" >> $GITHUB_STEP_SUMMARY
+          echo "Artifact uploaded under \`oia-audit-$(date -u +%Y-%m-%d)\`." >> $GITHUB_STEP_SUMMARY
+
+      - name: Upload audit artifact (90-day retention for drift tracking)
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: oia-audit-${{ github.run_id }}
+          path: /tmp/oia-audit.json
+          retention-days: 90
