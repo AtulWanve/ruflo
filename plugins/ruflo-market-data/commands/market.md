@@ -9,7 +9,7 @@ Market data commands:
 1. Fetch OHLCV data for `<symbol>` from the configured data source
 2. Normalize: open/high/low/close as relative percentages, volume as Z-score
 3. Vectorize each candle to a 64-dimension padded vector
-4. Store normalized data via `mcp__claude-flow__agentdb_hierarchical-store` in `market-data` namespace
+4. Store normalized data via `mcp__claude-flow__memory_store --namespace market-data` (the `memory_*` family is namespace-routed; `agentdb_hierarchical-*` routes by tier and ignores namespace strings — see skills/market-ingest/SKILL.md)
 5. Add vectors to HNSW index via `mcp__claude-flow__ruvllm_hnsw_add`
 6. Report: candles ingested, date range, min/max/avg price, volume profile
 
